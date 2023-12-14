@@ -6,6 +6,8 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,7 +26,7 @@ namespace Day10
 
 
             Console.WriteLine("Part 1: " + Part1(ref input));
-            Console.WriteLine("Part 2: " + Part2(ref example));
+            Console.WriteLine("Part 2: " + Part2(ref input));
             Console.ReadKey();
         }
         static string[] GetLines(string fileLocation)
@@ -80,7 +82,7 @@ namespace Day10
             }
             throw new Exception("No start position found");
         }
-        static List<Vector> GetPositions(char[,] matrix)
+        static List<Vector> GetLoopPositions(char[,] matrix)
         {
             int[] startPos = GetStartPos(matrix);
 
@@ -155,162 +157,103 @@ namespace Day10
             }
             return null;
         }
-        static List<Vector> BFS(Vector startPos, List<Vector> loopPositions, ref List<Vector> visitedPositions, List<Vector> directions, char[,] charMatrix)
-        {
-            List<Vector> positionsExplored = new List<Vector>();
-            Queue<Vector> queue = new Queue<Vector>();
-            queue.Enqueue(startPos);
-            positionsExplored.Add(startPos);
-
-            while (queue.Count > 0)
-            {
-                Vector currentPos = queue.Dequeue();
-                foreach (Vector direction in directions)
-                {
-                    Vector newPos = currentPos + direction;
-                    if (newPos.x < 0 || newPos.x >= charMatrix.GetLength(0) || newPos.y < 0 || newPos.y >= charMatrix.GetLength(1))
-                    {
-                        continue;
-                    }
-                    else if (!positionsExplored.Contains(newPos) && !loopPositions.Contains(newPos) && !visitedPositions.Contains(newPos))
-                    {
-                        queue.Enqueue(newPos);
-                        positionsExplored.Add(newPos);
-                    }
-                }
-            }
-            visitedPositions.AddRange(positionsExplored);
-            return positionsExplored;
-        }
         static int Part2(ref string[] lines)
-        {             
-            List<Vector> directions = new List<Vector>();
-            directions.Add(new Vector(0, -1));
-            directions.Add(new Vector(0, 1));
-            directions.Add(new Vector(1, 0));
-            directions.Add(new Vector(-1, 0));
-
+        {
             char[,] charMatrix = GetCharMatrix(lines);
-            bool clockWiseLoop;
+            List<Vector> loopPositions = GetLoopPositions(charMatrix);
+            List<Vector> stuckCharacters = GetStuckPositions(charMatrix, loopPositions);
+            VisualiseFoundPositions(charMatrix, stuckCharacters, loopPositions);
 
-            List<Vector> loopPositions = GetPositions(charMatrix);
-            loopPositions.Add(loopPositions[0]);
-            loopPositions.Add(loopPositions[1]);
+            return stuckCharacters.Count;
+        }                
+        static List<Vector> GetStuckPositions(char[,] grid, List<Vector> loopPositions)
+        {
+            bool inLoop = false;
+            bool? aboveIsInLoop = null;
 
-            Vector direction = loopPositions[1] - loopPositions[0];
-            int r = 0;
-            for (int i = 1; i < loopPositions.Count; i++)
+            List<Vector> stuckCharaters = new List<Vector>();
+            for (int y = 0; y < grid.GetLength(1); y++)
             {
-                Vector newDirection = loopPositions[i] - loopPositions[i-1];
-                if (newDirection != direction)
+                for (int x = 0; x < grid.GetLength(0); x++)
                 {
-                    //angle is clockwise from vertical
-                    int oldAngle = direction.GetAngle();
-                    int newAngle = newDirection.GetAngle();
-                    int angleChange = newAngle - oldAngle;
-                    if (angleChange > 180)
+                    char c = grid[x, y];
+                    if (loopPositions.Contains(new Vector(x, y)))
                     {
-                        angleChange -= 360;
+                        switch (c)
+                        {
+                            case '|':
+                                aboveIsInLoop = null;
+                                inLoop = !inLoop;
+                                break;
+
+                            case '-':
+                                break;
+
+                            case 'L':                                
+                                if (inLoop)
+                                {
+                                    aboveIsInLoop = false;
+                                }
+                                else
+                                {
+                                    aboveIsInLoop = true;
+                                }
+                                break;
+
+                            case 'J':
+                                if (aboveIsInLoop == null)
+                                {
+                                    throw new Exception("Not connected");
+                                }
+                                else if (aboveIsInLoop == true)
+                                {
+                                    inLoop = false;
+                                }
+                                else if (aboveIsInLoop == false)
+                                {
+                                    inLoop = true;
+                                }
+
+                                break;
+
+                            case '7':
+                                if (aboveIsInLoop == null)
+                                {
+                                    throw new Exception("Not connected");
+                                }
+                                else if (aboveIsInLoop == true)
+                                {
+                                    inLoop = true;
+                                }
+                                else if (aboveIsInLoop == false)
+                                {
+                                    inLoop = false;
+                                }
+                                break;
+
+                            case 'F':
+                                if (inLoop)
+                                {
+                                    aboveIsInLoop = true;
+                                }
+                                else
+                                {
+                                    aboveIsInLoop = false;
+                                }
+                                break;                           
+                        }
                     }
-                    else if (angleChange < -180)
+                    else
                     {
-                        angleChange += 360;
-                    }
-                    r = r + angleChange;
-                    direction = newDirection;
-                }
-                direction = newDirection;
-            }
-
-            loopPositions.RemoveAt(loopPositions.Count-1);
-            loopPositions.RemoveAt(loopPositions.Count-1);
-
-            if (r > 0)
-            {
-                clockWiseLoop = true;
-            }
-            else
-            {
-                clockWiseLoop = false;
-            }
-
-            Queue<Vector> queue = new Queue<Vector>();
-            List<Vector> visitedPositions = new List<Vector>();
-            List<Vector> stuckPositions = new List<Vector>();
-
-            List<Vector> possiblyStuck = new List<Vector>();
-            for (int y = 0; y < charMatrix.GetLength(1); y++)
-            {
-                for (int x = 0; x < charMatrix.GetLength(0); x++)
-                {
-                    possiblyStuck.Add(new Vector(x, y));
+                        if (inLoop)
+                        {
+                            stuckCharaters.Add(new Vector(x, y));
+                        }
+                    }                                        
                 }
             }
-            possiblyStuck = possiblyStuck.Where(pos => !loopPositions.Contains(pos)).ToList();
-
-            direction = loopPositions[1] - loopPositions[0];
-            for (int i = 1; i < loopPositions.Count; i++)
-            {
-                direction = loopPositions[i] - loopPositions[i - 1];
-                Vector startPos = loopPositions[i];
-                switch (direction.GetAngle())
-                {
-                    case 0:
-                        if (clockWiseLoop)
-                        {
-                            startPos += new Vector(1, 0);
-                        }
-                        else
-                        {
-                            startPos += new Vector(-1, 0);
-                        }
-                        break;
-                    case 90:
-                        if (clockWiseLoop)
-                        {
-                            startPos += new Vector(0, 1);
-                        }
-                        else
-                        {
-                            startPos += new Vector(0, -1);
-                        }
-                        break;
-                    case 180:
-                        if (clockWiseLoop)
-                        {
-                            startPos += new Vector(-1, 0);
-                        }
-                        else
-                        {
-                            startPos += new Vector(1, 0);
-                        }
-                        break;
-                    case 270:
-                        if (clockWiseLoop)
-                        {
-                            startPos += new Vector(0, -1);
-                        }
-                        else
-                        {
-                            startPos += new Vector(0, 1);
-                        }
-                        break;
-                    default:
-                        throw new Exception("Not a valid direction");                    
-                }
-                if (possiblyStuck.Contains(startPos))
-                {
-                    List<Vector> explored = BFS(startPos, loopPositions, ref visitedPositions, directions, charMatrix);
-                    stuckPositions.AddRange(explored);    
-                    possiblyStuck = possiblyStuck.Where(pos => !explored.Contains(pos)).ToList();
-                }                
-            }
-
-
-            int totalCharacters = charMatrix.GetLength(0) * charMatrix.GetLength(1);
-            VisualiseFoundPositions(charMatrix, stuckPositions, loopPositions);
-            return stuckPositions.Count;
-        }        
+            return stuckCharaters;
+        }
         static int Part1(ref string[] lines)
         {
             char[,] matrix = GetCharMatrix(lines);
