@@ -182,7 +182,7 @@ namespace Day5
             Int64 output = input;
             foreach (Map parser in maps)
             {
-                output = parser.Map(output);
+                output = parser.DoMap(output);
             }
             return output;
         }
@@ -209,7 +209,7 @@ namespace Day5
             }
         }
 
-        public Int64 Map(Int64 input)
+        public Int64 DoMap(Int64 input)
         {
             foreach (Rule rule in rules)
             {

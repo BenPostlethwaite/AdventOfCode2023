@@ -20,7 +20,7 @@ namespace Day13
             string[] input = GetLines("input.txt");
 
             Console.WriteLine("Part 1: " + Part1(ref input));
-            Console.WriteLine("Part 2: " + Part2(ref example));
+            Console.WriteLine("Part 2: " + Part2(ref input));
             Console.ReadKey();
         }
         static string[] GetLines(string fileLocation)
@@ -67,7 +67,7 @@ namespace Day13
             }
             return parts;
         }
-        static int Part2(ref string[] lines)
+        static ulong Part2(ref string[] lines)
         {
             List<char[,]> parts = GetParts(lines);
             ulong sum = 0;
@@ -78,39 +78,47 @@ namespace Day13
                 List<Smudge> horisontalSmudges = GetHorisontalSmudge(part);
                 List<Smudge> verticalSmudges = GetVerticalSmudge(part);
 
-                List<int> reflectedColumns = ReflectedHorisontal(part);
-                List<int> reflectedRows = ReflectedVertical(part);
+                //List<int> reflectedColumns = ReflectedHorisontal(part);
+                //List<int> reflectedRows = ReflectedVertical(part);
 
-                for (int s = 0; s < horisontalSmudges.Count; s++)
-                {
-                    Smudge smudge = horisontalSmudges[s];
-                    for (int r = 0; r < reflectedRows.Count; r++)
-                    {
-                        if (smudge.reflectionLine == reflectedRows[r])
-                        {
-                            horisontalSmudges.RemoveAt(s);
-                        }
-                    }
-                }
-                for (int s = 0; s < verticalSmudges.Count; s++)
-                {
-                    Smudge smudge = verticalSmudges[s];
-                    for (int r = 0; r < reflectedColumns.Count; r++)
-                    {
-                        if (smudge.reflectionLine == reflectedColumns[r])
-                        {
-                            verticalSmudges.RemoveAt(s);
-                        }
-                    }
-                }
+                //for (int s = 0; s < horisontalSmudges.Count; s++)
+                //{
+                //    Smudge smudge = horisontalSmudges[s];
+                //    for (int r = 0; r < reflectedRows.Count; r++)
+                //    {
+                //        if (smudge.reflectionLine == reflectedRows[r])
+                //        {
+                //            horisontalSmudges.RemoveAt(s);
+                //        }
+                //    }
+                //}
+                //for (int s = 0; s < verticalSmudges.Count; s++)
+                //{
+                //    Smudge smudge = verticalSmudges[s];
+                //    for (int r = 0; r < reflectedColumns.Count; r++)
+                //    {
+                //        if (smudge.reflectionLine == reflectedColumns[r])
+                //        {
+                //            verticalSmudges.RemoveAt(s);
+                //        }
+                //    }
+                //}
                 
-                if (horisontalSmudges.Count > 1 || verticalSmudges.Count > 1)
+                if (horisontalSmudges.Count + verticalSmudges.Count != 1)
                 {
                     throw new Exception("Not 1 smudge");
-                }                
+                }   
+                if (horisontalSmudges.Count == 1)
+                {
+                    sum += (ulong)horisontalSmudges[0].reflectionLine;
+                }
+                else
+                {
+                    sum += 100 * (ulong)verticalSmudges[0].reflectionLine;
+                }
             }
 
-            return 0;
+            return sum;
         }
         static ulong Part1(ref string[] lines)
         {
@@ -225,7 +233,6 @@ namespace Day13
 
         static List<Smudge> GetHorisontalSmudge(char[,] part)
         {
-            List<int> reflectedColumns = new List<int>();
             List<Smudge> smudges = new List<Smudge>();
             for (int x = 1; x < part.GetLength(0); x++)
             {
@@ -254,14 +261,13 @@ namespace Day13
                 }
                 if (wrongCoords.Count == 1)
                 {
-                    smudges.Add(new Smudge(wrongCoords[0], x));
+                    smudges.Add(new Smudge(wrongCoords[0], x, true));
                 }
             }
             return smudges;
         }
         static List<Smudge> GetVerticalSmudge(char[,] part)
         {
-            List<int> reflectedColumns = new List<int>();
             List<Smudge> smudges = new List<Smudge>();
             for (int y = 1; y < part.GetLength(1); y++)
             {
@@ -282,7 +288,7 @@ namespace Day13
                 }
                 if (wrongCoords.Count == 1)
                 {
-                    smudges.Add(new Smudge(wrongCoords[0], y));
+                    smudges.Add(new Smudge(wrongCoords[0], y, false));
                 }
             }
             return smudges;
@@ -313,10 +319,12 @@ public class Smudge
 {
     public (Coord, Coord) pair;
     public int reflectionLine;
-    public Smudge((Coord, Coord) pair, int reflectionLine)
+    bool isHorisontal;
+    public Smudge((Coord, Coord) pair, int reflectionLine, bool isHorisontal)
     {
         this.pair = pair;
         this.reflectionLine = reflectionLine;
+        this.isHorisontal = isHorisontal;
     }
     public override string ToString()
     {
